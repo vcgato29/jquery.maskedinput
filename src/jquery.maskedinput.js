@@ -254,9 +254,30 @@ $.fn.extend({
 							if (settings.completed && next >= len) {
 								settings.completed.call(input);
 							}
-						}
+						} else if ( c=='-' || c=='/') { // prefill a section with zeros if a separator char has been typed
+                            for (var j=p;j<tests.length;++j) { //search next separator in placeholder
+                                if ( tests[j]==null ) {
+                                    for (var i=p;i<tests.length;--i) { // search prev separator in placeholder
+                                        if ( tests[i]==null ) break;
+                                    }
+                                    ++i;
+                                    var inp = input.val();
+                                    var s = inp.substring(i,j); // take the piece between seperators
+                                    s = "000000"+s.replace("_",''); // remove placeholder chars and prefill with 0
+                                    s = s.substr(s.length-(j-i),(j-i)); // take the right length from the right
+                                    focusText = inp.substring(0,i) + s + inp.substring(j,inp.length);
+                                    for (var k=i;k<j;++k) { // sync buffer
+                                        buffer[k]=focusText.charAt(k);
+                                    }
+                                    input.val(focusText);
+                                    input.caret(j+1);
+                                    break;
+                                }
+                            }
+                        }
 					}
 					e.preventDefault();
+
 				}
 			}
 

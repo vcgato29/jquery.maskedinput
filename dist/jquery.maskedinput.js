@@ -1,7 +1,7 @@
 /*
-    jQuery Masked Input Plugin
-    Copyright (c) 2007 - 2013 Josh Bush (digitalbush.com)
-    Licensed under the MIT license (http://digitalbush.com/projects/masked-input-plugin/#license)
+    jQuery Masked Input Plugin, with update by wsl to support prefill
+    Copyright (c) 2007 - 2014 Josh Bush (digitalbush.com)
+    Licensed under the MIT license (https://github.com/wsl/jquery.maskedinput/#license)
     Version: 1.3.1
 */
 !function($) {
@@ -73,13 +73,16 @@
                         c = t;
                     }
                 }
+                function blurEvent() {
+                    checkVal(), input.val() != focusText && input.change();
+                }
                 function keydownEvent(e) {
                     var pos, begin, end, k = e.which;
                     8 === k || 46 === k || iPhone && 127 === k ? (pos = input.caret(), begin = pos.begin, 
-                    end = pos.end, 0 === end - begin && (begin = 46 !== k ? seekPrev(begin) : end = seekNext(begin - 1), 
+                    end = pos.end, end - begin === 0 && (begin = 46 !== k ? seekPrev(begin) : end = seekNext(begin - 1), 
                     end = 46 === k ? seekNext(end) : end), clearBuffer(begin, end), shiftL(begin, end - 1), 
-                    e.preventDefault()) : 27 == k && (input.val(focusText), input.caret(0, checkVal()), 
-                    e.preventDefault());
+                    e.preventDefault()) : 13 === k ? blurEvent.call(this, e) : 27 === k && (input.val(focusText), 
+                    input.caret(0, checkVal()), e.preventDefault());
                 }
                 function keypressEvent(e) {
                     var p, c, next, k = e.which, pos = input.caret();
@@ -89,11 +92,21 @@
                         pos.begin == pos.end && (k = input.val().charCodeAt(pos.begin - 1), pos.begin--, 
                         pos.end--);
                     }
-                    e.ctrlKey || e.altKey || e.metaKey || 32 > k || k && (0 !== pos.end - pos.begin && (clearBuffer(pos.begin, pos.end), 
-                    shiftL(pos.begin, pos.end - 1)), p = seekNext(pos.begin - 1), len > p && (c = String.fromCharCode(k), 
-                    tests[p].test(c) && (shiftR(p), buffer[p] = c, writeBuffer(), next = seekNext(p), 
-                    android ? setTimeout($.proxy($.fn.caret, input, next), 0) : input.caret(next), settings.completed && next >= len && settings.completed.call(input))), 
-                    e.preventDefault());
+                    if (!(e.ctrlKey || e.altKey || e.metaKey || 32 > k) && k && 13 !== k) {
+                        if (pos.end - pos.begin !== 0 && (clearBuffer(pos.begin, pos.end), shiftL(pos.begin, pos.end - 1)), 
+                        p = seekNext(pos.begin - 1), len > p) if (c = String.fromCharCode(k), tests[p].test(c)) shiftR(p), 
+                        buffer[p] = c, writeBuffer(), next = seekNext(p), android ? setTimeout($.proxy($.fn.caret, input, next), 0) : input.caret(next), 
+                        settings.completed && next >= len && settings.completed.call(input); else if ("-" == c || "/" == c) for (var j = p; j < tests.length; ++j) if (null == tests[j]) {
+                            for (var i = p; i < tests.length && null != tests[i]; --i) ;
+                            ++i;
+                            var inp = input.val(), s = inp.substring(i, j);
+                            s = "000000" + s.replace("_", ""), s = s.substr(s.length - (j - i), j - i), focusText = inp.substring(0, i) + s + inp.substring(j, inp.length);
+                            for (var k = i; j > k; ++k) buffer[k] = focusText.charAt(k);
+                            input.val(focusText), input.caret(j + 1);
+                            break;
+                        }
+                        e.preventDefault();
+                    }
                 }
                 function clearBuffer(start, end) {
                     var i;
@@ -129,11 +142,9 @@
                     clearTimeout(caretTimeoutId);
                     var pos;
                     focusText = input.val(), pos = checkVal(), caretTimeoutId = setTimeout(function() {
-                        writeBuffer(), pos == mask.length ? input.caret(0, pos) : input.caret(pos);
+                        writeBuffer(), pos == mask.replace("?", "").length ? input.caret(0, pos) : input.caret(pos);
                     }, 10);
-                }).bind("blur.mask", function() {
-                    checkVal(), input.val() != focusText && input.change();
-                }).bind("keydown.mask", keydownEvent).bind("keypress.mask", keypressEvent).bind(pasteEventName, function() {
+                }).bind("blur.mask", blurEvent).bind("keydown.mask", keydownEvent).bind("keypress.mask", keypressEvent).bind(pasteEventName, function() {
                     setTimeout(function() {
                         var pos = checkVal(!0);
                         input.caret(pos), settings.completed && pos == input.val().length && settings.completed.call(input);
